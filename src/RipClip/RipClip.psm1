@@ -20,7 +20,7 @@ $Script:RipClipConfig = @{
         LogRoot = "C:\Ripped\logs"
     }
 
-    Version = "0.2.0"
+    Version = "0.3.0-dev"
 }
 
 #endregion
