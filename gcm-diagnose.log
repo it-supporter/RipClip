@@ -1,0 +1,180 @@
+﻿Diagnose log at 2026-02-11T16:32:50Z
+
+AppPath: C:\Program Files\Git\mingw64\bin\git-credential-manager.exe
+InstallDir: C:\Program Files\Git\mingw64\bin\
+Version: 2.7.0+d1dd8a4ded75a2b1faae653157ac1699609442ad
+
+------------
+Diagnostic: Environment
+Skipped: False
+Success: True
+Exception: None
+Log:
+OSType: Windows
+OSVersion: 10.0 (build 26200)
+Reading environment variables... OK
+ Variables:
+SystemDrive=C:
+ProgramFiles(x86)=C:\Program Files (x86)
+MSYSTEM=MINGW64
+ProgramW6432=C:\Program Files
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 165 Stepping 5, GenuineIntel
+POWERSHELL_DISTRIBUTION_CHANNEL=MSI:Windows 10 Pro
+TMP=C:\Users\admin\AppData\Local\Temp
+PROCESSOR_ARCHITECTURE=AMD64
+DriverData=C:\Windows\System32\Drivers\DriverData
+Path=C:/Program Files/Git/mingw64/libexec/git-core;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\usr\bin;C:\Users\admin\bin;C:\Program Files\PowerShell\7;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\WindowsPowerShell\Scripts\HP.ClientScriptLibrary;C:\Program Files\dotnet\;C:\Program Files\NVIDIA Corporation\NVIDIA NvDLISR;C:\Program Files (x86)\ZeroTier\One\;C:\Program Files\PowerShell\7-preview\preview;C:\Program Files\PowerShell\7\;C:\Program Files\Git\cmd;C:\Program Files\PowerShell\7;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\WindowsPowerShell\Scripts\HP.ClientScriptLibrary;C:\Program Files\dotnet\;C:\Program Files\NVIDIA Corporation\NVIDIA NvDLISR;C:\Program Files (x86)\ZeroTier\One\;C:\Program Files\PowerShell\7-preview\preview;C:\Program Files\PowerShell\7\;C:\Users\admin\AppData\Local\Programs\oh-my-posh\bin\;C:\Users\admin\AppData\Local\Microsoft\WindowsApps;C:\Users\admin\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\admin\.dotnet\tools;C:\Ripper;C:\Ripper
+WSLENV=WT_SESSION:WT_PROFILE_ID:
+PROCESSOR_REVISION=a505
+TEMP=C:\Users\admin\AppData\Local\Temp
+USERPROFILE=C:\Users\admin
+LOGONSERVER=\\RESERVEHJERNEN
+TERM=xterm-256color
+USERNAME=admin
+SystemRoot=C:\WINDOWS
+GIT_EXEC_PATH=C:/Program Files/Git/mingw64/libexec/git-core
+PLINK_PROTOCOL=ssh
+OneDrive=C:\Users\admin\OneDrive - TEC
+LOCALAPPDATA=C:\Users\admin\AppData\Local
+CommonProgramFiles=C:\Program Files\Common Files
+ZES_ENABLE_SYSMAN=1
+ProgramData=C:\ProgramData
+LC_CTYPE=C.UTF-8
+HOMEPATH=\Users\admin
+WT_SESSION=10e16398-4d53-4a0d-bf43-cf365f62b543
+COMPUTERNAME=RESERVEHJERNEN
+ALLUSERSPROFILE=C:\ProgramData
+POSH_INSTALLER=winget
+OneDriveCommercial=C:\Users\admin\OneDrive - TEC
+WT_PROFILE_ID={574e775e-4f2a-5b96-ac1e-a2962a402336}
+C:\Ripper=C:\Ripper
+
+SESSIONNAME=Console
+CommonProgramFiles(x86)=C:\Program Files (x86)\Common Files
+HOMEDRIVE=C:
+windir=C:\WINDOWS
+GIT_TRACE2_PARENT_SID=db53758e-5159-45a9-9114-99b2dd0eb6ad
+NUMBER_OF_PROCESSORS=16
+OS=Windows_NT
+ProgramFiles=C:\Program Files
+ComSpec=C:\WINDOWS\system32\cmd.exe
+PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.CPL
+HOME=C:\Users\admin
+PSModulePath=C:\Users\admin\OneDrive - TEC\Dokumenter\PowerShell\Modules;C:\Program Files\PowerShell\Modules;c:\program files\powershell\7\Modules;C:\Program Files\WindowsPowerShell\Modules;C:\WINDOWS\system32\WindowsPowerShell\v1.0\Modules
+TMPDIR=C:\Users\admin\AppData\Local\Temp
+APPDATA=C:\Users\admin\AppData\Roaming
+USERDOMAIN=RESERVEHJERNEN
+PROCESSOR_LEVEL=6
+POSH_THEMES_PATH=C:\Users\admin\AppData\Local\Programs\oh-my-posh\themes\
+CommonProgramW6432=C:\Program Files\Common Files
+USERDOMAIN_ROAMINGPROFILE=RESERVEHJERNEN
+COLORTERM=truecolor
+PUBLIC=C:\Users\Public
+
+
+------------
+Diagnostic: File system
+Skipped: False
+Success: True
+Exception: None
+Log:
+Temporary directory is 'C:\Users\admin\AppData\Local\Temp\'...
+Checking basic file I/O...
+Writing to temporary file 'C:\Users\admin\AppData\Local\Temp\8ee44ce1ab1f681dd3338a1c'... OK
+Reading from temporary file 'C:\Users\admin\AppData\Local\Temp\8ee44ce1ab1f681dd3338a1c'... OK
+Deleting temporary file 'C:\Users\admin\AppData\Local\Temp\8ee44ce1ab1f681dd3338a1c'... OK
+Testing IFileSystem instance...
+UserHomePath: C:\Users\admin
+UserDataDirectoryPath: C:\Users\admin\.gcm
+GetCurrentDirectory(): C:\Dev\RipClip
+
+------------
+Diagnostic: Networking
+Skipped: False
+Success: True
+Exception: None
+Log:
+Checking networking and HTTP stack...
+Creating HTTP client... OK
+IsNetworkAvailable: True
+Sending HEAD request to http://example.com...Sending HEAD request to https://example.com... OK
+ OK
+Acquiring free TCP port... OK
+Testing local HTTP loopback connections...
+Creating new HTTP listener for http://localhost:56347/... OK
+Waiting for loopback connection... OK
+Writing response... OK
+Waiting for response data... OK
+Loopback connection data OK
+
+------------
+Diagnostic: Git
+Skipped: False
+Success: True
+Exception: None
+Log:
+Getting Git version... OK
+Git version is '2.53.0.windows.1'
+Locating current repository...Git repository at 'C:/Dev/RipClip/.git'
+ OK
+Listing all Git configuration... OK
+Git configuration:
+file:C:/Program Files/Git/etc/gitconfig	diff.astextplain.textconv=astextplain
+file:C:/Program Files/Git/etc/gitconfig	filter.lfs.clean=git-lfs clean -- %f
+file:C:/Program Files/Git/etc/gitconfig	filter.lfs.smudge=git-lfs smudge -- %f
+file:C:/Program Files/Git/etc/gitconfig	filter.lfs.process=git-lfs filter-process
+file:C:/Program Files/Git/etc/gitconfig	filter.lfs.required=true
+file:C:/Program Files/Git/etc/gitconfig	http.sslbackend=schannel
+file:C:/Program Files/Git/etc/gitconfig	core.autocrlf=true
+file:C:/Program Files/Git/etc/gitconfig	core.fscache=true
+file:C:/Program Files/Git/etc/gitconfig	core.symlinks=false
+file:C:/Program Files/Git/etc/gitconfig	core.editor="C:\\Program Files\\Notepad++\\notepad++.exe" -multiInst -notabbar -nosession -noPlugin
+file:C:/Program Files/Git/etc/gitconfig	pull.rebase=false
+file:C:/Program Files/Git/etc/gitconfig	credential.helper=manager
+file:C:/Program Files/Git/etc/gitconfig	credential.https://dev.azure.com.usehttppath=true
+file:C:/Program Files/Git/etc/gitconfig	init.defaultbranch=master
+file:C:/Users/admin/.gitconfig	user.name=Henrik Burchardt
+file:C:/Users/admin/.gitconfig	user.email=burchardthenrik@gmail.com
+file:.git/config	core.repositoryformatversion=0
+file:.git/config	core.filemode=false
+file:.git/config	core.bare=false
+file:.git/config	core.logallrefupdates=true
+file:.git/config	core.symlinks=false
+file:.git/config	core.ignorecase=true
+
+
+------------
+Diagnostic: Credential storage
+Skipped: False
+Success: True
+Exception: None
+Log:
+ICredentialStore instance is of type: CredentialStore
+Writing test credential... OK
+Reading test credential... OK
+Deleting test credential... OK
+
+------------
+Diagnostic: Microsoft authentication (AAD/MSA)
+Skipped: False
+Success: True
+Exception: None
+Log:
+Broker is not enabled.
+Flow type is: Auto
+Gathering MSAL token cache data... OK
+CacheDirectory: C:\Users\admin\AppData\Local\.IdentityService
+CacheFileName: msal.cache
+CacheFilePath: C:\Users\admin\AppData\Local\.IdentityService\msal.cache
+Creating cache helper... OK
+Verifying MSAL token cache persistence... OK
+
+------------
+Diagnostic: GitHub API
+Skipped: False
+Success: True
+Exception: None
+Log:
+Using 'https://github.com/' as API target.
+Querying '/meta' endpoint... OK
+
