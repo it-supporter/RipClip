@@ -63,9 +63,37 @@ function Build-RipClipArguments {
         "--add-metadata"
         "--no-check-formats"
         "--ffmpeg-location", $Script:RipClipConfig.Paths.Ffmpeg
-        "--output", "$($Script:RipClipConfig.Paths.OutputRoot)\%(playlist_title)s\%(title)s.%(ext)s"
+        "--output", "$($Script:RipClipConfig.Paths.OutputRoot)\%(artist,creator,uploader)s\%(artist,creator,uploader)s - %(title)s.%(ext)s"
         $Url
     )
+}
+
+function Invoke-RipClipDownload {
+
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$Arguments
+    )
+
+    $stdout = $null
+    $stderr = $null
+    $exitCode = 0
+
+    try {
+        $stdout = & $Script:RipClipConfig.Paths.YtDlp @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+    }
+    catch {
+        $stderr = $_.Exception.Message
+        $exitCode = 1
+    }
+
+    return [PSCustomObject]@{
+        ExitCode = $exitCode
+        StdOut   = $stdout
+        StdErr   = $stderr
+        Success  = ($exitCode -eq 0)
+    }
 }
 
 #endregion
@@ -86,12 +114,13 @@ function Invoke-RipClip {
     }
 
     $arguments = Build-RipClipArguments -Url $Url
+    $result    = Invoke-RipClipDownload -Arguments $arguments
 
     return [PSCustomObject]@{
-        Url       = $Url
-        Arguments = $arguments
-        Status    = "Arguments built"
-        Success   = $true
+        Url      = $Url
+        ExitCode = $result.ExitCode
+        Success  = $result.Success
+        StdErr   = $result.StdErr
     }
 }
 
