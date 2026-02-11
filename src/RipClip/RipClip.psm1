@@ -14,11 +14,63 @@ $Script:RipClipConfig = @{
         AudioFormat  = "mp3"
         AudioQuality = "0"
     }
+
+    Logging = @{
+        Enabled = $true
+        LogRoot = "C:\Ripped\logs"
+    }
+
+    Version = "0.2.0"
 }
 
 #endregion
 
 #region Private Functions
+
+function Write-RipClipLog {
+
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet("INFO","WARN","ERROR")]
+        [string]$Level,
+
+        [Parameter(Mandatory)]
+        [string]$Message,
+
+        [string]$Url
+    )
+
+    if (-not $Script:RipClipConfig.Logging.Enabled) {
+        return
+    }
+
+    try {
+        if (-not (Test-Path $Script:RipClipConfig.Logging.LogRoot)) {
+            New-Item -ItemType Directory `
+                -Path $Script:RipClipConfig.Logging.LogRoot `
+                -Force | Out-Null
+        }
+
+        $logFile = Join-Path `
+            $Script:RipClipConfig.Logging.LogRoot `
+            ("ripclip_{0}.log" -f (Get-Date -Format "yyyy-MM-dd"))
+
+        $entry = [PSCustomObject]@{
+            Timestamp = (Get-Date).ToString("o")
+            Level     = $Level
+            Url       = $Url
+            Message   = $Message
+            Version   = $Script:RipClipConfig.Version
+        }
+
+        $entry |
+            ConvertTo-Json -Compress |
+            Add-Content -Path $logFile
+    }
+    catch {
+        # Logging must never interrupt execution
+    }
+}
 
 function Test-RipClipEnvironment {
 
@@ -35,7 +87,9 @@ function Test-RipClipEnvironment {
 
     if (-not (Test-Path $Script:RipClipConfig.Paths.OutputRoot)) {
         try {
-            New-Item -ItemType Directory -Path $Script:RipClipConfig.Paths.OutputRoot -Force | Out-Null
+            New-Item -ItemType Directory `
+                -Path $Script:RipClipConfig.Paths.OutputRoot `
+                -Force | Out-Null
         }
         catch {
             $missing += "Output directory creation failed"
@@ -55,17 +109,25 @@ function Build-RipClipArguments {
         [string]$Url
     )
 
-    return @(
+    $isPlaylist = $Url -match "[\?&]list="
+
+    $args = @(
         "-x"
         "--audio-format",  $Script:RipClipConfig.Download.AudioFormat
         "--audio-quality", $Script:RipClipConfig.Download.AudioQuality
         "--embed-thumbnail"
         "--add-metadata"
-        "--no-check-formats"
         "--ffmpeg-location", $Script:RipClipConfig.Paths.Ffmpeg
         "--output", "$($Script:RipClipConfig.Paths.OutputRoot)\%(artist,creator,uploader)s\%(artist,creator,uploader)s - %(title)s.%(ext)s"
-        $Url
     )
+
+    if (-not $isPlaylist) {
+        $args += "--no-playlist"
+    }
+
+    $args += $Url
+
+    return $args
 }
 
 function Invoke-RipClipDownload {
@@ -75,16 +137,16 @@ function Invoke-RipClipDownload {
         [string[]]$Arguments
     )
 
-    $stdout = $null
-    $stderr = $null
+    $stdout   = $null
+    $stderr   = $null
     $exitCode = 0
 
     try {
-        $stdout = & $Script:RipClipConfig.Paths.YtDlp @Arguments 2>&1
+        $stdout   = & $Script:RipClipConfig.Paths.YtDlp @Arguments 2>&1
         $exitCode = $LASTEXITCODE
     }
     catch {
-        $stderr = $_.Exception.Message
+        $stderr   = $_.Exception.Message
         $exitCode = 1
     }
 
@@ -101,20 +163,70 @@ function Invoke-RipClipDownload {
 #region Public Functions
 
 function Invoke-RipClip {
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
         [string]$Url
     )
 
+    # ---------------------------
+    # Defensive Input Validation
+    # ---------------------------
+
+    if ([string]::IsNullOrWhiteSpace($Url)) {
+        Write-RipClipLog -Level ERROR -Message "URL was empty or whitespace." -Url $Url
+        throw "URL cannot be empty."
+    }
+
+    if (-not [Uri]::IsWellFormedUriString($Url, [UriKind]::Absolute)) {
+        Write-RipClipLog -Level ERROR -Message "Invalid URL format." -Url $Url
+        throw "Invalid URL format."
+    }
+
+    $uri = [uri]$Url
+
+    if ($uri.Host -notmatch "^(www\.)?(youtube\.com|youtu\.be)$") {
+        Write-RipClipLog -Level ERROR -Message "URL host is not a valid YouTube domain." -Url $Url
+        throw "Only YouTube URLs are supported."
+    }
+
+    Write-RipClipLog -Level INFO -Message "Invocation started." -Url $Url
+
+    # ---------------------------
+    # Environment Validation
+    # ---------------------------
+
     $envTest = Test-RipClipEnvironment
 
     if (-not $envTest.Success) {
+        Write-RipClipLog -Level ERROR -Message "Environment validation failed." -Url $Url
         throw "Environment validation failed. Missing: $($envTest.Missing -join ', ')"
     }
 
+    Write-RipClipLog -Level INFO -Message "Environment validation passed." -Url $Url
+
+    # ---------------------------
+    # Execution Pipeline
+    # ---------------------------
+
     $arguments = Build-RipClipArguments -Url $Url
     $result    = Invoke-RipClipDownload -Arguments $arguments
+
+    if ($result.Success) {
+        Write-RipClipLog -Level INFO -Message "Download completed successfully." -Url $Url
+    }
+    else {
+
+        $errMsg = if ([string]::IsNullOrWhiteSpace($result.StdErr)) {
+            "Download failed with exit code $($result.ExitCode)."
+        }
+        else {
+            $result.StdErr
+        }
+
+        Write-RipClipLog -Level ERROR -Message $errMsg -Url $Url
+    }
 
     return [PSCustomObject]@{
         Url      = $Url
