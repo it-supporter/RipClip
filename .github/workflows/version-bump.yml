@@ -1,0 +1,60 @@
+name: Auto Version Bump
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Bump ModuleVersion
+        shell: pwsh
+        run: |
+          $ManifestPath = "src/RipClip/RipClip.psd1"
+          $Content = Get-Content $ManifestPath -Raw
+
+          if ($Content -match "ModuleVersion\s*=\s*'([\d\.]+)'") {
+              $CurrentVersion = $matches[1]
+
+              $Parts = $CurrentVersion.Split(".")
+              $Major = [int]$Parts[0]
+              $Minor = [int]$Parts[1]
+              $Patch = [int]$Parts[2]
+
+              $Patch++
+              $NewVersion = "$Major.$Minor.$Patch"
+
+              $NewContent = $Content -replace "ModuleVersion\s*=\s*'[\d\.]+'", "ModuleVersion = '$NewVersion'"
+
+              Set-Content $ManifestPath $NewContent -Encoding UTF8
+
+              Write-Host "New version: $NewVersion"
+          }
+          else {
+              Write-Error "ModuleVersion not found"
+              exit 1
+          }
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add src/RipClip/RipClip.psd1
+          git commit -m "Auto bump ModuleVersion"
+          git push
+
+      - name: Create tag
+        shell: bash
+        run: |
+          VERSION=$(grep ModuleVersion src/RipClip/RipClip.psd1 | sed -E "s/.*'([0-9.]+)'.*/\1/")
+          git tag v$VERSION
+          git push origin v$VERSION
