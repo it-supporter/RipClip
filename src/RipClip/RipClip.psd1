@@ -12,7 +12,7 @@
 RootModule = 'RipClip.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.3.1'
+ModuleVersion = '0.4.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -30,7 +30,7 @@ CompanyName = 'Reservehjernen'
 Copyright = '(c) Henrik Burchardt. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'Modular PowerShell-based YouTube audio downloader built on yt-dlp.'
+Description = 'Modular PowerShell-based YouTube audio downloader built on yt-dlp with playlist control and clipboard integration.'
 
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '7.0'
@@ -69,7 +69,7 @@ PowerShellVersion = '7.0'
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = @('Invoke-RipClip')
+FunctionsToExport = @('Invoke-RipClip','rip','ripclip')
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport   = @()
@@ -107,7 +107,7 @@ PrivateData = @{
         # IconUri = ''
 
         # ReleaseNotes of this module
-        # ReleaseNotes = ''
+         ReleaseNotes = 'Add clipboard mode, playlist limiter, multi-file reporting and -Open toggle.'
 
         # Prerelease string of this module
         # Prerelease = ''

@@ -1,241 +1,168 @@
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
-
-#region Configuration
-
-$Script:RipClipConfig = @{
-    Paths = @{
-        YtDlp      = "C:\Ripper\yt-dlp.exe"
-        Ffmpeg     = "C:\Ripper\ffmpeg.exe"
-        OutputRoot = "C:\Ripped"
-    }
-
-    Download = @{
-        AudioFormat  = "mp3"
-        AudioQuality = "0"
-    }
-
-    Logging = @{
-        Enabled = $true
-        LogRoot = "C:\Ripped\logs"
-    }
-
-    Version = "0.3.0-dev"
-}
-
-#endregion
-
-#region Private Functions
-
-function Write-RipClipLog {
-
-    param(
-        [Parameter(Mandatory)]
-        [ValidateSet("INFO","WARN","ERROR")]
-        [string]$Level,
-
-        [Parameter(Mandatory)]
-        [string]$Message,
-
-        [string]$Url
-    )
-
-    if (-not $Script:RipClipConfig.Logging.Enabled) {
-        return
-    }
-
-    try {
-        if (-not (Test-Path $Script:RipClipConfig.Logging.LogRoot)) {
-            New-Item -ItemType Directory `
-                -Path $Script:RipClipConfig.Logging.LogRoot `
-                -Force | Out-Null
-        }
-
-        $logFile = Join-Path `
-            $Script:RipClipConfig.Logging.LogRoot `
-            ("ripclip_{0}.log" -f (Get-Date -Format "yyyy-MM-dd"))
-
-        $entry = [PSCustomObject]@{
-            Timestamp = (Get-Date).ToString("o")
-            Level     = $Level
-            Url       = $Url
-            Message   = $Message
-            Version   = $Script:RipClipConfig.Version
-        }
-
-        $entry |
-            ConvertTo-Json -Compress |
-            Add-Content -Path $logFile
-    }
-    catch {
-        # Logging must never interrupt execution
-    }
-}
-
-function Test-RipClipEnvironment {
-
-    $missing = @()
-
-    foreach ($tool in @(
-        $Script:RipClipConfig.Paths.YtDlp,
-        $Script:RipClipConfig.Paths.Ffmpeg
-    )) {
-        if (-not (Test-Path $tool)) {
-            $missing += $tool
-        }
-    }
-
-    if (-not (Test-Path $Script:RipClipConfig.Paths.OutputRoot)) {
-        try {
-            New-Item -ItemType Directory `
-                -Path $Script:RipClipConfig.Paths.OutputRoot `
-                -Force | Out-Null
-        }
-        catch {
-            $missing += "Output directory creation failed"
-        }
-    }
-
-    return [PSCustomObject]@{
-        Success = ($missing.Count -eq 0)
-        Missing = $missing
-    }
-}
-
-function Build-RipClipArguments {
-
-    param(
-        [Parameter(Mandatory)]
-        [string]$Url
-    )
-
-    $isPlaylist = $Url -match "[\?&]list="
-
-    $args = @(
-        "-x"
-        "--audio-format",  $Script:RipClipConfig.Download.AudioFormat
-        "--audio-quality", $Script:RipClipConfig.Download.AudioQuality
-        "--embed-thumbnail"
-        "--add-metadata"
-        "--ffmpeg-location", $Script:RipClipConfig.Paths.Ffmpeg
-        "--output", "$($Script:RipClipConfig.Paths.OutputRoot)\%(artist,creator,uploader)s\%(artist,creator,uploader)s - %(title)s.%(ext)s"
-    )
-
-    if (-not $isPlaylist) {
-        $args += "--no-playlist"
-    }
-
-    $args += $Url
-
-    return $args
-}
-
-function Invoke-RipClipDownload {
-
-    param(
-        [Parameter(Mandatory)]
-        [string[]]$Arguments
-    )
-
-    $stdout   = $null
-    $stderr   = $null
-    $exitCode = 0
-
-    try {
-        $stdout   = & $Script:RipClipConfig.Paths.YtDlp @Arguments 2>&1
-        $exitCode = $LASTEXITCODE
-    }
-    catch {
-        $stderr   = $_.Exception.Message
-        $exitCode = 1
-    }
-
-    return [PSCustomObject]@{
-        ExitCode = $exitCode
-        StdOut   = $stdout
-        StdErr   = $stderr
-        Success  = ($exitCode -eq 0)
-    }
-}
-
-#endregion
-
-#region Public Functions
+# =================================
+# RipClip Module
+# =================================
 
 function Invoke-RipClip {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory)]
-        [string]$Url
+        [Parameter(Mandatory=$true, Position=0)]
+        [string]$Url,
+
+        [switch]$Open
     )
 
-    # ---------------------------
-    # Defensive Input Validation
-    # ---------------------------
+    Write-Host ""
+    Write-Host "RipClip processing..." -ForegroundColor Cyan
 
-    if ([string]::IsNullOrWhiteSpace($Url)) {
-        Write-RipClipLog -Level ERROR -Message "URL was empty or whitespace." -Url $Url
-        throw "URL cannot be empty."
+    # ---------------------------------
+    # Validate yt-dlp
+    # ---------------------------------
+
+    if (-not (Get-Command yt-dlp -ErrorAction SilentlyContinue)) {
+        Write-Host "yt-dlp not found in PATH." -ForegroundColor Red
+        return
     }
 
-    if (-not [Uri]::IsWellFormedUriString($Url, [UriKind]::Absolute)) {
-        Write-RipClipLog -Level ERROR -Message "Invalid URL format." -Url $Url
-        throw "Invalid URL format."
+    # ---------------------------------
+    # Detect Playlist
+    # ---------------------------------
+
+    $IsPlaylist = $Url -match "list="
+    $PlaylistLimit = $null
+
+    if ($IsPlaylist) {
+
+        Write-Host ""
+        Write-Host "Playlist detected." -ForegroundColor Yellow
+
+        $InputCount = Read-Host "How many items to download? (Press Enter for all)"
+
+        if ($InputCount -and $InputCount -match '^\d+$') {
+            $PlaylistLimit = [int]$InputCount
+        }
+        elseif ($InputCount) {
+            Write-Host "Invalid input. Downloading full playlist." -ForegroundColor DarkYellow
+        }
     }
 
-    $uri = [uri]$Url
+    # ---------------------------------
+    # Define Output Folder
+    # ---------------------------------
 
-    if ($uri.Host -notmatch "^(www\.)?(youtube\.com|youtu\.be)$") {
-        Write-RipClipLog -Level ERROR -Message "URL host is not a valid YouTube domain." -Url $Url
-        throw "Only YouTube URLs are supported."
+    $OutputFolder = Join-Path $HOME "Music"
+
+    if (-not (Test-Path $OutputFolder)) {
+        New-Item -ItemType Directory -Path $OutputFolder | Out-Null
     }
 
-    Write-RipClipLog -Level INFO -Message "Invocation started." -Url $Url
+    # ---------------------------------
+    # Build yt-dlp Arguments
+    # ---------------------------------
 
-    # ---------------------------
-    # Environment Validation
-    # ---------------------------
+    $Arguments = @(
+        "--extract-audio"
+        "--audio-format", "mp3"
+        "--print", "after_move:filepath"
+        "-o", "$OutputFolder\%(title)s.%(ext)s"
+        $Url
+    )
 
-    $envTest = Test-RipClipEnvironment
-
-    if (-not $envTest.Success) {
-        Write-RipClipLog -Level ERROR -Message "Environment validation failed." -Url $Url
-        throw "Environment validation failed. Missing: $($envTest.Missing -join ', ')"
+    if ($PlaylistLimit) {
+        $Arguments += @("--playlist-end", $PlaylistLimit)
     }
 
-    Write-RipClipLog -Level INFO -Message "Environment validation passed." -Url $Url
+    # ---------------------------------
+    # Execute yt-dlp
+    # ---------------------------------
 
-    # ---------------------------
-    # Execution Pipeline
-    # ---------------------------
+    try {
+        $Result = & yt-dlp @Arguments 2>&1
+    }
+    catch {
+        Write-Host "yt-dlp execution failed." -ForegroundColor Red
+        return
+    }
 
-    $arguments = Build-RipClipArguments -Url $Url
-    $result    = Invoke-RipClipDownload -Arguments $arguments
+    # ---------------------------------
+    # Extract Final File Paths (FIXED)
+    # ---------------------------------
 
-    if ($result.Success) {
-        Write-RipClipLog -Level INFO -Message "Download completed successfully." -Url $Url
+    $FullPaths = $Result | Where-Object { $_ -match "^[A-Za-z]:\\" }
+
+    if ($FullPaths -and $FullPaths.Count -gt 0) {
+
+        Write-Host ""
+        Write-Host "Download completed." -ForegroundColor Green
+        Write-Host "Saved as:" -ForegroundColor DarkGray
+
+        foreach ($Path in $FullPaths) {
+            Write-Host $Path -ForegroundColor Cyan
+        }
+
+        Write-Host ""
+
+        if ($Open) {
+            foreach ($Path in $FullPaths) {
+                if (Test-Path $Path) {
+                    Start-Process explorer.exe "/select,`"$Path`""
+                }
+            }
+        }
     }
     else {
-
-        $errMsg = if ([string]::IsNullOrWhiteSpace($result.StdErr)) {
-            "Download failed with exit code $($result.ExitCode)."
-        }
-        else {
-            $result.StdErr
-        }
-
-        Write-RipClipLog -Level ERROR -Message $errMsg -Url $Url
-    }
-
-    return [PSCustomObject]@{
-        Url      = $Url
-        ExitCode = $result.ExitCode
-        Success  = $result.Success
-        StdErr   = $result.StdErr
+        Write-Host ""
+        Write-Host "Download finished, but file path could not be detected." -ForegroundColor Yellow
+        Write-Host ""
     }
 }
 
-#endregion
+# ---------------------------------
+# Manual Wrapper (rip)
+# ---------------------------------
 
-Export-ModuleMember -Function Invoke-RipClip
+function rip {
+    param(
+        [Parameter(Mandatory=$true, Position=0)]
+        [string]$Url,
+
+        [switch]$Open
+    )
+
+    Invoke-RipClip -Url $Url -Open:$Open
+}
+
+# ---------------------------------
+# Clipboard Wrapper (ripclip)
+# ---------------------------------
+
+function ripclip {
+    param(
+        [switch]$Open
+    )
+
+    if (-not (Get-Command Get-Clipboard -ErrorAction SilentlyContinue)) {
+        Write-Host "Clipboard access not available." -ForegroundColor Red
+        return
+    }
+
+    $ClipboardContent = Get-Clipboard
+
+    if (-not $ClipboardContent) {
+        Write-Host "Clipboard is empty." -ForegroundColor Yellow
+        return
+    }
+
+    if ($ClipboardContent -notmatch "^https?://") {
+        Write-Host "Clipboard does not contain a valid URL." -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host ""
+    Write-Host "Using URL from clipboard:" -ForegroundColor DarkGray
+    Write-Host $ClipboardContent -ForegroundColor Cyan
+
+    Invoke-RipClip -Url $ClipboardContent -Open:$Open
+}
+
+Export-ModuleMember -Function Invoke-RipClip, rip, ripclip
