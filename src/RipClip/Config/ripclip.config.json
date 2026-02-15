@@ -1,0 +1,19 @@
+{
+  "Paths": {
+    "YtDlp": "C:\\Ripper\\yt-dlp.exe",
+    "Ffmpeg": "C:\\Ripper\\ffmpeg.exe",
+    "OutputRoot": ""
+  },
+  "Download": {
+    "AudioFormat": "mp3",
+    "AudioQuality": "0",
+    "EmbedThumbnail": true,
+    "AddMetadata": true
+  },
+  "Logging": {
+    "Enabled": true,
+    "Level": "Info",
+    "UseUserProfile": true,
+    "CustomPath": ""
+  }
+}
