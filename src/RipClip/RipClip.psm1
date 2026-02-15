@@ -1,29 +1,9 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-#region Configuration
-
-$Script:RipClipConfig = @{
-    Paths = @{
-        YtDlp      = "C:\Ripper\yt-dlp.exe"
-        Ffmpeg     = "C:\Ripper\ffmpeg.exe"
-        OutputRoot = "C:\Ripped"
-    }
-
-    Download = @{
-        AudioFormat  = "mp3"
-        AudioQuality = "0"
-    }
-
-    Logging = @{
-        Enabled = $true
-        LogRoot = "C:\Ripped\logs"
-    }
-
-    Version = "0.4.2-dev"
-}
-
-#endregion
+# Load configuration engine
+. $PSScriptRoot\Private\Get-RipClipConfig.ps1
+$Script:RipClipConfig = Get-RipClipConfig
 
 #region Logging
 
@@ -97,7 +77,6 @@ function Resolve-RipClipRequest {
             throw "Clipboard is empty or does not contain a valid URL."
         }
 
-        # Force single-video behavior from clipboard
         $Url = ($Url -replace "&list=.*","")
 
         return @{
@@ -106,7 +85,6 @@ function Resolve-RipClipRequest {
             ClipboardMode = $true
         }
     }
-
 
     if (-not [Uri]::IsWellFormedUriString($Url, [UriKind]::Absolute)) {
         throw "Invalid URL format."
@@ -121,9 +99,9 @@ function Resolve-RipClipRequest {
 
     if (-not $isPlaylist) {
         return @{
-            Url            = $Url
-            MaxItems       = 1
-            ClipboardMode  = $false
+            Url           = $Url
+            MaxItems      = 1
+            ClipboardMode = $false
         }
     }
 
@@ -136,9 +114,9 @@ function Resolve-RipClipRequest {
 
         "a" {
             return @{
-                Url            = $Url
-                MaxItems       = 0
-                ClipboardMode  = $false
+                Url           = $Url
+                MaxItems      = 0
+                ClipboardMode = $false
             }
         }
 
@@ -146,9 +124,9 @@ function Resolve-RipClipRequest {
             $count = Read-Host "How many items?"
             if ($count -match "^\d+$") {
                 return @{
-                    Url            = $Url
-                    MaxItems       = [int]$count
-                    ClipboardMode  = $false
+                    Url           = $Url
+                    MaxItems      = [int]$count
+                    ClipboardMode = $false
                 }
             }
             else { throw "Invalid number." }
@@ -200,7 +178,6 @@ function Build-RipClipArguments {
     return $args
 }
 
-
 function Invoke-RipClipDownload {
 
     param([string[]]$Arguments)
@@ -242,11 +219,8 @@ function Parse-RipClipOutput {
     $paths = @()
 
     foreach ($line in $StdOut) {
-
         if ($line -match "Destination:\s(.+)$") {
-
             $path = $matches[1]
-
             if ($path.ToLower().EndsWith(".$($Script:RipClipConfig.Download.AudioFormat.ToLower())")) {
                 $paths += $path
             }
@@ -254,36 +228,6 @@ function Parse-RipClipOutput {
     }
 
     return $paths
-}
-
-
-#endregion
-
-#region Diagnostics
-
-function Get-RipClipDiagnostics {
-
-    param(
-        $Request,
-        $Arguments,
-        $Result,
-        [timespan]$Duration
-    )
-
-    return [PSCustomObject]@{
-        Timestamp      = (Get-Date)
-        RipClipVersion = $Script:RipClipConfig.Version
-        Url            = $Request.Url
-        MaxItems       = $Request.MaxItems
-        ClipboardMode  = $Request.ClipboardMode
-        YtDlpPath      = $Script:RipClipConfig.Paths.YtDlp
-        FfmpegPath     = $Script:RipClipConfig.Paths.Ffmpeg
-        ExitCode       = $Result.ExitCode
-        Success        = $Result.Success
-        DurationMS     = [int]$Duration.TotalMilliseconds
-        Arguments      = ($Arguments -join " ")
-        StdErr         = ($Result.StdErr -join "`n")
-    }
 }
 
 #endregion
