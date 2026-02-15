@@ -9,23 +9,54 @@ function Get-RipClipConfig {
 
     $defaultConfig = Get-Content $defaultConfigPath -Raw | ConvertFrom-Json
 
-    $userConfigDir = Join-Path $HOME ".ripclip"
+    $userConfigDir  = Join-Path $HOME ".ripclip"
     $userConfigPath = Join-Path $userConfigDir "config.json"
 
-    if (Test-Path $userConfigPath) {
+    # Ensure user config directory exists
+    if (-not (Test-Path $userConfigDir)) {
+        New-Item -ItemType Directory -Path $userConfigDir -Force | Out-Null
+    }
+
+    # Bootstrap user config if missing
+    if (-not (Test-Path $userConfigPath)) {
+
+        $defaultConfig | ConvertTo-Json -Depth 5 |
+            Set-Content -Path $userConfigPath -Encoding UTF8
+
+        Write-Host ""
+        Write-Host "RipClip user configuration initialized at:" -ForegroundColor Cyan
+        Write-Host $userConfigPath -ForegroundColor DarkGray
+        Write-Host ""
+    }
+    else {
 
         $userConfig = Get-Content $userConfigPath -Raw | ConvertFrom-Json
 
         foreach ($section in $userConfig.PSObject.Properties) {
 
-            if ($defaultConfig.$($section.Name)) {
+            if ($defaultConfig.PSObject.Properties.Name -contains $section.Name) {
 
-                foreach ($prop in $section.Value.PSObject.Properties) {
-                    $defaultConfig.$($section.Name).$($prop.Name) = $prop.Value
+                $defaultSection = $defaultConfig.$($section.Name)
+                $userSection    = $section.Value
+
+                if ($defaultSection -is [PSCustomObject]) {
+
+                    foreach ($prop in $userSection.PSObject.Properties) {
+
+                        if ($defaultSection.PSObject.Properties.Name -contains $prop.Name) {
+                            $defaultSection.$($prop.Name) = $prop.Value
+                        }
+                    }
+                }
+                else {
+                    $defaultConfig.$($section.Name) = $userSection
                 }
             }
         }
     }
+
+    . $PSScriptRoot\Test-RipClipConfig.ps1
+    Test-RipClipConfig -Config $defaultConfig | Out-Null
 
     return $defaultConfig
 }
