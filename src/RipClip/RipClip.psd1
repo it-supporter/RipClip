@@ -12,7 +12,7 @@
 RootModule = 'RipClip.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.6.0-dev'
+ModuleVersion = '0.6.0'
 
 # Supported PowerShell editions
 CompatiblePSEditions = @('Core')
@@ -71,11 +71,5 @@ PrivateData = @{
 
 }
 
-<<<<<<< HEAD
 
-
-
-=======
 }
->>>>>>> dev
-
