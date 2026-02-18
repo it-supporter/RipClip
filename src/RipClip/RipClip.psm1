@@ -256,6 +256,21 @@ function Parse-RipClipOutput {
 # Public Command
 # -------------------------------------------------
 
+<#
+.SYNOPSIS
+Downloads audio from YouTube using yt-dlp with playlist awareness and safe defaults.
+
+.DESCRIPTION
+Primary entry point for RipClip. Handles URL resolution, output path resolution,
+playlist constraints, engine execution, and deterministic summary reporting.
+
+.PULSEAI_SECTION
+DailyUse
+
+.PULSEAI_SUBSECTION
+Download
+#>
+
 function Invoke-RipClip {
 
     [CmdletBinding(DefaultParameterSetName="Download")]
@@ -424,6 +439,20 @@ if ($null -eq $request) {
     }
 }
 
+<#
+.SYNOPSIS
+Returns the effective runtime configuration for RipClip.
+
+.DESCRIPTION
+Exposes resolved paths, binary locations, and configuration state
+used by the RipClip execution engine.
+
+.PULSEAI_SECTION
+Diagnostics
+
+.PULSEAI_SUBSECTION
+Configuration
+#>
 
 function Get-RipClipEffectiveConfig {
     return Get-RipClipConfig | ConvertTo-Json -Depth 5
