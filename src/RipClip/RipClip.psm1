@@ -1,61 +1,90 @@
+# =================================
+# RipClip Module Entry
+# =================================
+
 Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
 
-# -------------------------------------------------
-# Explicitly Load Core Private Components
-# -------------------------------------------------
+# ---------------------------------
+# Module-Level State
+# ---------------------------------
 
+# Inside a module, $PSScriptRoot already equals:
+# ...\src\RipClip
+$script:RipClipRoot = $PSScriptRoot
+
+# ---------------------------------
+# Load Private Functions
+# ---------------------------------
+
+# Core config must load first
 . $PSScriptRoot\Private\Get-RipClipConfig.ps1
 
-$privatePath = Join-Path $PSScriptRoot "Private"
+$privatePath = Join-Path $PSScriptRoot 'Private'
+
 if (Test-Path $privatePath) {
-    Get-ChildItem $privatePath -Filter *.ps1 |
-        Where-Object { $_.Name -ne "Get-RipClipConfig.ps1" } |
+    Get-ChildItem -Path $privatePath -Filter *.ps1 |
+        Where-Object { $_.Name -ne 'Get-RipClipConfig.ps1' } |
         ForEach-Object { . $_.FullName }
 }
 
-# -------------------------------------------------
+# ---------------------------------
+# Load Public Functions
+# ---------------------------------
+# NOTE:
+# Public functions are dot-sourced before exports.
+# Wildcard export in the manifest controls visibility.
+
+$publicPath = Join-Path $PSScriptRoot 'Public'
+
+if (Test-Path $publicPath) {
+    Get-ChildItem -Path $publicPath -Filter *.ps1 | ForEach-Object {
+        . $_.FullName
+    }
+}
+
+# ---------------------------------
 # Initialize Configuration
-# -------------------------------------------------
+# ---------------------------------
 
-$Script:RipClipConfig = Get-RipClipConfig
+$script:RipClipConfig = Get-RipClipConfig
 
-# -------------------------------------------------
-# Logging
-# -------------------------------------------------
+# =================================
+# Internal Utility Functions
+# =================================
 
-function Write-RipClipLog {
+function Add-RipClipLog {
 
     param(
-        [ValidateSet("INFO","WARN","ERROR")]
+        [ValidateSet('INFO','WARN','ERROR')]
         [string]$Level,
         [string]$Message,
         [string]$Url
     )
 
-    if (-not $Script:RipClipConfig.Logging.Enabled) { return }
+    if (-not $script:RipClipConfig.Logging.Enabled) { return }
 
     try {
 
-        $logRoot = if (-not [string]::IsNullOrWhiteSpace($Script:RipClipConfig.Logging.CustomPath)) {
-            $Script:RipClipConfig.Logging.CustomPath
+        $logRoot = if (-not [string]::IsNullOrWhiteSpace($script:RipClipConfig.Logging.CustomPath)) {
+            $script:RipClipConfig.Logging.CustomPath
         }
         else {
-            Join-Path (Join-Path $HOME ".ripclip") "logs"
+            Join-Path (Join-Path $HOME '.ripclip') 'logs'
         }
 
         if (-not (Test-Path $logRoot)) {
             New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
         }
 
-        $logFile = Join-Path $logRoot ("ripclip_{0}.log" -f (Get-Date -Format "yyyy-MM-dd"))
+        $logFile = Join-Path $logRoot ("ripclip_{0}.log" -f (Get-Date -Format 'yyyy-MM-dd'))
 
         [PSCustomObject]@{
-            Timestamp = (Get-Date).ToString("o")
+            Timestamp = (Get-Date).ToString('o')
             Level     = $Level
             Url       = $Url
             Message   = $Message
-            Version   = $Script:RipClipConfig.Version
+            Version   = $script:RipClipConfig.Version
         } |
         ConvertTo-Json -Compress |
         Add-Content -Path $logFile -Encoding UTF8
@@ -63,15 +92,11 @@ function Write-RipClipLog {
     catch {}
 }
 
-# -------------------------------------------------
-# Environment Validation
-# -------------------------------------------------
-
 function Test-RipClipEnvironment {
 
     foreach ($tool in @(
-        $Script:RipClipConfig.Paths.YtDlp,
-        $Script:RipClipConfig.Paths.Ffmpeg
+        $script:RipClipConfig.Paths.YtDlp,
+        $script:RipClipConfig.Paths.Ffmpeg
     )) {
         if (-not (Test-Path $tool)) {
             return $false
@@ -81,11 +106,7 @@ function Test-RipClipEnvironment {
     return $true
 }
 
-# -------------------------------------------------
-# Policy Layer
-# -------------------------------------------------
-
-function Resolve-RipClipRequest {
+function Get-RipClipRequest {
 
     param([string]$Url)
 
@@ -95,10 +116,10 @@ function Resolve-RipClipRequest {
         $Url = Get-Clipboard
 
         if ([string]::IsNullOrWhiteSpace($Url)) {
-            throw "Clipboard is empty or does not contain a valid URL."
+            throw 'Clipboard is empty or does not contain a valid URL.'
         }
 
-        $Url = ($Url -replace "&list=.*","")
+        $Url = ($Url -replace '&list=.*','')
 
         return @{
             Url           = $Url
@@ -108,16 +129,16 @@ function Resolve-RipClipRequest {
     }
 
     if (-not [Uri]::IsWellFormedUriString($Url, [UriKind]::Absolute)) {
-        throw "Invalid URL format."
+        throw 'Invalid URL format.'
     }
 
     $uri = [uri]$Url
 
-    if ($uri.Host -notmatch "^(www\.)?(youtube\.com|youtu\.be)$") {
-        throw "Only YouTube URLs are supported."
+    if ($uri.Host -notmatch '^(www\.)?(youtube\.com|youtu\.be)$') {
+        throw 'Only YouTube URLs are supported.'
     }
 
-    $isPlaylist = $Url -match "[\?&]list="
+    $isPlaylist = $Url -match '[\?&]list='
 
     if (-not $isPlaylist) {
         return @{
@@ -127,35 +148,31 @@ function Resolve-RipClipRequest {
         }
     }
 
-    Write-Host ""
-    Write-Host "Playlist detected."
+    Write-Host ''
+    Write-Host 'Playlist detected.'
 
-    $choice = Read-Host "Download (A)ll, (N)umber of items, or (C)ancel?"
+    $choice = Read-Host 'Download (A)ll, (N)umber of items, or (C)ancel?'
 
     switch ($choice.ToLower()) {
 
-        "a" { return @{ Url=$Url; MaxItems=0; ClipboardMode=$false } }
+        'a' { return @{ Url=$Url; MaxItems=0; ClipboardMode=$false } }
 
-        "n" {
-            $count = Read-Host "How many items?"
-            if ($count -match "^\d+$") {
+        'n' {
+            $count = Read-Host 'How many items?'
+            if ($count -match '^\d+$') {
                 return @{ Url=$Url; MaxItems=[int]$count; ClipboardMode=$false }
             }
-            else { throw "Invalid number." }
+            else { throw 'Invalid number.' }
         }
 
         default {
-            Write-Host "Cancelled."
+            Write-Host 'Cancelled.'
             return $null
         }
     }
 }
 
-# -------------------------------------------------
-# Engine Layer
-# -------------------------------------------------
-
-function Build-RipClipArguments {
+function New-RipClipArguments {
 
     param(
         [string]$Url,
@@ -167,33 +184,33 @@ function Build-RipClipArguments {
     $outputTemplate = "$OutputRoot\%(uploader)s\%(title)s.%(ext)s"
 
     $args = @(
-        "-x"
-        "--format","bestaudio/best"
-        "--no-keep-video"
-        "--audio-format",$Script:RipClipConfig.Download.AudioFormat
-        "--audio-quality",$Script:RipClipConfig.Download.AudioQuality
+        '-x'
+        '--format','bestaudio/best'
+        '--no-keep-video'
+        '--audio-format',$script:RipClipConfig.Download.AudioFormat
+        '--audio-quality',$script:RipClipConfig.Download.AudioQuality
     )
 
-    if ($Script:RipClipConfig.Download.EmbedThumbnail) {
-        $args += "--embed-thumbnail"
+    if ($script:RipClipConfig.Download.EmbedThumbnail) {
+        $args += '--embed-thumbnail'
     }
 
-    if ($Script:RipClipConfig.Download.AddMetadata) {
-        $args += "--add-metadata"
+    if ($script:RipClipConfig.Download.AddMetadata) {
+        $args += '--add-metadata'
     }
 
     $args += @(
-        "--ffmpeg-location",$Script:RipClipConfig.Paths.Ffmpeg
-        "--output",$outputTemplate
+        '--ffmpeg-location',$script:RipClipConfig.Paths.Ffmpeg
+        '--output',$outputTemplate
     )
 
     if ($MaxItems -gt 0) {
-        $args += "--playlist-items"
+        $args += '--playlist-items'
         $args += "1-$MaxItems"
     }
 
     if ($MaxItems -eq 1) {
-        $args += "--no-playlist"
+        $args += '--no-playlist'
     }
 
     $args += $Url
@@ -204,14 +221,14 @@ function Invoke-RipClipDownload {
 
     param([string[]]$Arguments)
 
-    $outFile = Join-Path $env:TEMP "ripclip_out.txt"
-    $errFile = Join-Path $env:TEMP "ripclip_err.txt"
+    $outFile = Join-Path $env:TEMP 'ripclip_out.txt'
+    $errFile = Join-Path $env:TEMP 'ripclip_err.txt'
 
     if (Test-Path $outFile) { Remove-Item $outFile -Force }
     if (Test-Path $errFile) { Remove-Item $errFile -Force }
 
     $process = Start-Process `
-        -FilePath $Script:RipClipConfig.Paths.YtDlp `
+        -FilePath $script:RipClipConfig.Paths.YtDlp `
         -ArgumentList $Arguments `
         -NoNewWindow `
         -PassThru `
@@ -227,7 +244,7 @@ function Invoke-RipClipDownload {
     }
 }
 
-function Parse-RipClipOutput {
+function ConvertFrom-RipClipOutput {
 
     param($StdOut)
 
@@ -238,10 +255,10 @@ function Parse-RipClipOutput {
     }
 
     $paths = @()
-    $audioExt = "." + $Script:RipClipConfig.Download.AudioFormat.ToLower()
+    $audioExt = '.' + $script:RipClipConfig.Download.AudioFormat.ToLower()
 
     foreach ($line in $StdOut) {
-        if ($line -match "Destination:\s(.+)$") {
+        if ($line -match 'Destination:\s(.+)$') {
             $path = $matches[1].Trim()
             if ($path.ToLower().EndsWith($audioExt)) {
                 $paths += $path
@@ -252,101 +269,81 @@ function Parse-RipClipOutput {
     return @($paths)
 }
 
-# -------------------------------------------------
-# Public Command
-# -------------------------------------------------
+# =================================
+# Public Commands
+# =================================
 
+function Invoke-RipClip {
 <#
 .SYNOPSIS
 Downloads audio from YouTube using yt-dlp with playlist awareness and safe defaults.
-
-.DESCRIPTION
-Primary entry point for RipClip. Handles URL resolution, output path resolution,
-playlist constraints, engine execution, and deterministic summary reporting.
-
-.PULSEAI_SECTION
-DailyUse
-
-.PULSEAI_SUBSECTION
-Download
 #>
 
-function Invoke-RipClip {
-
-    [CmdletBinding(DefaultParameterSetName="Download")]
+    [CmdletBinding(DefaultParameterSetName='Download')]
     param(
-        [Parameter(Position=0,ParameterSetName="Download")]
+        [Parameter(Position=0,ParameterSetName='Download')]
         [string]$Url,
 
-        [Parameter(Position=1,ParameterSetName="Download")]
+        [Parameter(Position=1,ParameterSetName='Download')]
         [string]$OutputDirectory,
 
-        [Parameter(ParameterSetName="Diagnostics")]
+        [Parameter(ParameterSetName='Diagnostics')]
         [switch]$Diagnostics
     )
 
     if ($Diagnostics) {
-        Write-Host ""
-        Write-Host "=== RipClip Environment Diagnostics ===" -ForegroundColor Cyan
-        Write-Host ""
-        Write-Host "Version        : $($Script:RipClipConfig.Version)"
-        Write-Host "yt-dlp Exists  : $(Test-Path $Script:RipClipConfig.Paths.YtDlp)"
-        Write-Host "ffmpeg Exists  : $(Test-Path $Script:RipClipConfig.Paths.Ffmpeg)"
-        Write-Host ""
+        Write-Host ''
+        Write-Host '=== RipClip Environment Diagnostics ===' -ForegroundColor Cyan
+        Write-Host ''
+        Write-Host "Version        : $($script:RipClipConfig.Version)"
+        Write-Host "yt-dlp Exists  : $(Test-Path $script:RipClipConfig.Paths.YtDlp)"
+        Write-Host "ffmpeg Exists  : $(Test-Path $script:RipClipConfig.Paths.Ffmpeg)"
+        Write-Host ''
         return
     }
 
     if (-not (Test-RipClipEnvironment)) {
-        throw "Environment validation failed."
+        throw 'Environment validation failed.'
     }
 
-    # -------------------------
-    # Resolve URL
-    # -------------------------
+    try {
+        if ($PSBoundParameters.ContainsKey('Url')) {
 
-try {
-    if ($PSBoundParameters.ContainsKey("Url")) {
+            if ($Url -eq '') {
+                Write-Host ''
+                Write-Host 'Empty string is not a valid URL.' -ForegroundColor Red
+                Write-Host ''
+                return
+            }
 
-        if ($Url -eq "") {
-            Write-Host ""
-            Write-Host "Empty string is not a valid URL." -ForegroundColor Red
-            Write-Host ""
-            return
+            $request = Get-RipClipRequest -Url $Url
         }
-
-        $request = Resolve-RipClipRequest -Url $Url
+        else {
+            $request = Get-RipClipRequest -Url $null
+        }
     }
-    else {
-        $request = Resolve-RipClipRequest -Url $null
+    catch {
+        Write-Host ''
+        Write-Host $_.Exception.Message -ForegroundColor Red
+        Write-Host ''
+        return
     }
-}
-catch {
-    Write-Host ""
-    Write-Host $_.Exception.Message -ForegroundColor Red
-    Write-Host ""
-    return
-}
 
-# NEW SAFE GUARD
-if ($null -eq $request) {
-    Write-Host ""
-    Write-Host "Operation cancelled." -ForegroundColor Yellow
-    Write-Host ""
-    return
-}
-
-    # -------------------------
-    # Resolve Output Directory
-    # -------------------------
+    if ($null -eq $request) {
+        Write-Host ''
+        Write-Host 'Operation cancelled.' -ForegroundColor Yellow
+        Write-Host ''
+        return
+    }
 
     if (-not [string]::IsNullOrWhiteSpace($OutputDirectory)) {
         $effectiveOutput = $OutputDirectory
     }
-    elseif (-not [string]::IsNullOrWhiteSpace($Script:RipClipConfig.Paths.OutputRoot)) {
-        $effectiveOutput = $Script:RipClipConfig.Paths.OutputRoot
+    elseif (-not [string]::IsNullOrWhiteSpace($script:RipClipConfig.Paths.OutputRoot)) {
+        $effectiveOutput = $script:RipClipConfig.Paths.OutputRoot
     }
     else {
-        $effectiveOutput = Join-Path (Join-Path $HOME "Music") "RipClip"
+        $effectiveOutput = Join-Path (Join-Path $HOME 'Music') 'RipClip'
     }
 
     $effectiveOutput = $effectiveOutput.TrimEnd('\')
@@ -355,19 +352,14 @@ if ($null -eq $request) {
         New-Item -ItemType Directory -Path $effectiveOutput -Force | Out-Null
     }
 
-    # -------------------------
-    # Execute Engine
-    # -------------------------
-
-    $arguments = Build-RipClipArguments `
+    $arguments = New-RipClipArguments `
         -Url $request.Url `
         -MaxItems $request.MaxItems `
         -OutputRoot $effectiveOutput
 
     $result = Invoke-RipClipDownload -Arguments $arguments
-    $paths  = @(Parse-RipClipOutput -StdOut $result.StdOut)
+    $paths  = @(ConvertFrom-RipClipOutput -StdOut $result.StdOut)
 
-    # Always initialize deterministic state
     $total      = 0
     $downloaded = 0
     $skipped    = 0
@@ -384,17 +376,13 @@ if ($null -eq $request) {
         $downloaded = $paths.Count
         $skipped    = $total - $downloaded
 
-        # ---------------------------------------------
-        # Per-item output
-        # ---------------------------------------------
-
         foreach ($finalPath in $paths) {
 
             $fileName = Split-Path $finalPath -Leaf
             $artist   = Split-Path (Split-Path $finalPath -Parent) -Leaf
 
-            Write-Host ""
-            Write-Host "✔ Download Complete" -ForegroundColor Green
+            Write-Host ''
+            Write-Host '✔ Download Complete' -ForegroundColor Green
             Write-Host "Artist : $artist"
             Write-Host "File   : $fileName"
             Write-Host "Saved  : $finalPath"
@@ -402,32 +390,28 @@ if ($null -eq $request) {
     }
     else {
 
-        Write-Host ""
-        Write-Host "Download failed." -ForegroundColor Red
+        Write-Host ''
+        Write-Host 'Download failed.' -ForegroundColor Red
         Write-Host "Exit Code: $($result.ExitCode)"
-        Write-Host ""
+        Write-Host ''
     }
-
-    # -------------------------
-    # Summary Section
-    # -------------------------
 
     $summaryColor = if ($downloaded -eq $total -and $total -gt 0) {
-        "Green"
+        'Green'
     }
     elseif ($downloaded -eq 0 -and $skipped -gt 0) {
-        "Yellow"
+        'Yellow'
     }
     else {
-        "Cyan"
+        'Cyan'
     }
 
-    Write-Host ""
-    Write-Host "=== Summary ===" -ForegroundColor $summaryColor
+    Write-Host ''
+    Write-Host '=== Summary ===' -ForegroundColor $summaryColor
     Write-Host "Total      : $total" -ForegroundColor $summaryColor
     Write-Host "Downloaded : $downloaded" -ForegroundColor Green
     Write-Host "Skipped    : $skipped" -ForegroundColor Yellow
-    Write-Host ""
+    Write-Host ''
 
     return [PSCustomObject]@{
         Url         = $request.Url
@@ -439,27 +423,12 @@ if ($null -eq $request) {
     }
 }
 
-<#
-.SYNOPSIS
-Returns the effective runtime configuration for RipClip.
-
-.DESCRIPTION
-Exposes resolved paths, binary locations, and configuration state
-used by the RipClip execution engine.
-
-.PULSEAI_SECTION
-Diagnostics
-
-.PULSEAI_SUBSECTION
-Configuration
-#>
-
 function Get-RipClipEffectiveConfig {
-    return Get-RipClipConfig | ConvertTo-Json -Depth 5
+    Get-RipClipConfig | ConvertTo-Json -Depth 5
 }
 
-Set-Alias rip Invoke-RipClip
+# ---------------------------------
+# Public Aliases
+# ---------------------------------
 
-Export-ModuleMember `
-    -Function Invoke-RipClip, Get-RipClipEffectiveConfig `
-    -Alias rip
+Set-Alias -Name rip -Value Invoke-RipClip -Scope Script
